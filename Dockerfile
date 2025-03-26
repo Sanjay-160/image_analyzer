@@ -1,29 +1,39 @@
- # Use an official Node.js image as the build stage
-FROM node:20 AS build
+# Stage 1: Build the application
+FROM node:20-alpine as builder
  
-# Set the working directory
 WORKDIR /app
  
-# Copy package.json and package-lock.json
-COPY package.json package-lock.json ./
+# Copy package files first for better layer caching
+COPY package.json package-lock.json* ./
  
 # Install dependencies
-RUN npm install --legacy-peer-deps
+RUN npm install
  
-# Copy the rest of the project
+# Copy the rest of the application
 COPY . .
  
-# Build the Vite app (output goes to /app/dist)
+# Build the application
 RUN npm run build
  
-# Use Nginx for serving the app
+# Stage 2: Serve the application
 FROM nginx:alpine
  
-# Copy built files from the correct output directory
-COPY --from=build /app/dist /usr/share/nginx/html
+# Copy the build output from the builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
  
-# Expose port 80
-EXPOSE 80
+# Custom nginx configuration for port 8080
+RUN echo "server { \
+    listen 8080; \
+    server_name localhost; \
+    location / { \
+        root /usr/share/nginx/html; \
+        index index.html; \
+        try_files \$uri \$uri/ /index.html; \
+    } \
+}" > /etc/nginx/conf.d/default.conf
  
-# Start Nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Expose port 8080
+EXPOSE 8080
+ 
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]]
