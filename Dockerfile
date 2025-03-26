@@ -1,31 +1,29 @@
-# Stage 1: Build the application
-FROM node:18-alpine as builder
-
+# Use an official Node.js image as the build stage
+FROM node:20 AS build
+ 
+# Set the working directory
 WORKDIR /app
-
-# Copy package files first to leverage Docker cache
+ 
+# Copy package.json and package-lock.json
 COPY package.json package-lock.json ./
-
-# Install dependencies
-RUN npm install
-
-# Copy the rest of the application
+ 
+# Install dependencies with legacy-peer-deps
+RUN npm install --legacy-peer-deps
+ 
+# Copy the rest of the project
 COPY . .
-
-# Build the application (Vite-specific build command)
+ 
+# Build the React app
 RUN npm run build
-
-# Stage 2: Serve the application
+ 
+# Use Nginx for serving the app
 FROM nginx:alpine
-
-# Copy the built application from the builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copy the custom nginx configuration for SPA
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
+ 
+# Copy built files from build stage
+COPY --from=build /app/build /usr/share/nginx/html
+ 
 # Expose port 80
 EXPOSE 80
-
-# Start nginx
+ 
+# Start Nginx
 CMD ["nginx", "-g", "daemon off;"]
